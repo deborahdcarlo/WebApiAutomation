@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
 using RestSharp;
+using RestSharp.Authenticators;
 using RestSharp.Serialization.Json;
 
 namespace WebApiAutomation
@@ -10,10 +11,13 @@ namespace WebApiAutomation
     [TestClass]
     public class UnitTest1
     {
-        [TestMethod]
-        public void TestMethod1()
+        private static JToken token;
+        private static RestClient client;
+
+        [ClassInitialize]
+        public static void ClassInit(TestContext testContext)
         {
-            var client = new RestClient("http://localhost:3000/");
+            client = new RestClient("http://localhost:3000/");
 
             var request = new RestRequest("auth/login", Method.POST);
 
@@ -25,23 +29,55 @@ namespace WebApiAutomation
             });
 
             var response = client.Execute(request);
-
             JObject obs = JObject.Parse(response.Content);
-            var result = obs["access_token"];
+            token = obs["access_token"];
+            
+        }
 
-            var request2 = new RestRequest("products/{productid}", Method.GET);
-            request2.AddHeader("Authorization", "Bearer " + result.ToString());
-            request2.AddUrlSegment("productid", 3);
+        [TestMethod]
+        public void TestMethod1()
+        {                                              
+            var request = new RestRequest("locations/{locationid}", Method.GET);
 
-            var response2 = client.Execute(request2);
+            var authentication = new JwtAuthenticator(token.ToString());
+            authentication.Authenticate(client, request);
+
+            //request2.AddHeader("Authorization", "Bearer " + result.ToString());
+            request.AddUrlSegment("locationid", 2);
+
+            var response = client.Execute(request);
 
             //var deserialize = new JsonDeserializer();
             //var output = deserialize.Deserialize<Dictionary<string, string>>(response);
             //var result = output["name"];
 
+            JObject obj = JObject.Parse(response.Content);
+            var result = obj["name"];
 
-            JObject obs2 = JObject.Parse(response2.Content);
-            var result2 = obs2["name"];
+            Assert.IsTrue(result.ToString() == "Location002");
+        }
+
+        [TestMethod]
+        public void TestMethod2()
+        {
+            var request = new RestRequest("products/{productid}", Method.GET);
+
+            var authentication = new JwtAuthenticator(token.ToString());
+            authentication.Authenticate(client, request);
+
+            //request2.AddHeader("Authorization", "Bearer " + result.ToString());
+            request.AddUrlSegment("productid", 3);
+
+            var response = client.Execute(request);
+
+            //var deserialize = new JsonDeserializer();
+            //var output = deserialize.Deserialize<Dictionary<string, string>>(response);
+            //var result = output["name"];
+
+            JObject obj = JObject.Parse(response.Content);
+            var result = obj["name"];
+
+            Assert.IsTrue(result.ToString() == "Product003");
         }
     }
 }
